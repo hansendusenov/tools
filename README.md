@@ -40,11 +40,11 @@ branding.
 
 Run directly from GitHub (no installation required)
 
-    curl -sL https://raw.githubusercontent.com/USERNAME/REPO/main/sysinfo.sh | bash
+    curl -sL https://raw.githubusercontent.com/hansendusenov/REPO/main/sysinfo.sh | bash
 
 or
 
-    wget -qO- https://raw.githubusercontent.com/USERNAME/REPO/main/sysinfo.sh | bash
+    wget -qO- https://raw.githubusercontent.com/hansendusenov/REPO/main/sysinfo.sh | bash
 
 ------------------------------------------------------------------------
 
