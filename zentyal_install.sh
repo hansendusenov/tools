@@ -5,32 +5,43 @@
 # Repository: https://github.com/hansendusenov/tools
 # ==========================================
 
-# 1. Pastikan script dijalankan sebagai root agar tidak minta password di tengah proses
+# Menghentikan script secara otomatis jika ada command yang gagal/error
+set -e
+
+echo "[1/6] Melakukan pra-pengecekan sistem..."
+
+# Pengecekan akses root
 if [ "$EUID" -ne 0 ]; then
-  echo "Error: Script ini harus dijalankan sebagai root."
-  echo "Gunakan perintah: sudo ./zentyal_install.sh"
+  echo "Error: Script ini harus dijalankan dengan sudo."
+  echo "Gunakan: curl -sL https://raw.githubusercontent.com/hansendusenov/tools/main/zentyal_install.sh | sudo bash"
   exit 1
 fi
 
-echo "[1/5] Menyiapkan environment non-interactive..."
-# Mencegah munculnya pop-up konfigurasi dari paket seperti Postfix atau MySQL
+# Pengecekan kompatibilitas OS (Mencegah instalasi di Ubuntu 26.04 yang belum didukung)
+UBUNTU_CODENAME=$(lsb_release -cs 2>/dev/null || cat /etc/os-release | grep VERSION_CODENAME | cut -d= -f2)
+if [ "$UBUNTU_CODENAME" == "resolute" ]; then
+  echo "PERINGATAN KRITIS: Anda menggunakan Ubuntu 26.04 (Resolute)."
+  echo "Zentyal saat ini belum merilis package yang kompatibel untuk versi ini."
+  echo "Proses instalasi dibatalkan untuk mencegah dependency hell/kerusakan sistem Anda."
+  exit 1
+fi
+
+echo "[2/6] Menyiapkan environment non-interactive..."
 export DEBIAN_FRONTEND=noninteractive
 
-echo "[2/5] Update OS dan install dependencies dasar..."
+echo "[3/6] Update OS dan install dependencies dasar..."
 apt-get update && apt-get upgrade -y
-apt-get install -y wget ca-certificates apt-transport-https software-properties-common gnupg2
+apt-get install -y wget ca-certificates apt-transport-https software-properties-common gnupg2 lsb-release
 
-echo "[3/5] Menambahkan Repository dan GPG Key Zentyal 8.1..."
-# Menggunakan GPG key terbaru ke trusted.gpg.d
-wget -qO - http://keys.zentyal.org/zentyal-8.1-archive.asc | cat > /etc/apt/trusted.gpg.d/zentyal_8.1.asc
-# Menambahkan source list Zentyal
-echo "deb http://archive.zentyal.org/zentyal 8.1 main" > /etc/apt/sources.list.d/zentyal.list
+echo "[4/6] Menambahkan Repository dan GPG Key Zentyal 8.0..."
+# Menggunakan URL repositori 8.0 yang valid
+wget -qO - http://keys.zentyal.org/zentyal-8.0-archive.asc | cat > /etc/apt/trusted.gpg.d/zentyal_8.0.asc
+echo "deb http://archive.zentyal.org/zentyal 8.0 main" > /etc/apt/sources.list.d/zentyal.list
 
-echo "[4/5] Update list repository terbaru..."
+echo "[5/6] Update list repository terbaru..."
 apt-get update
 
-echo "[5/5] Menginstal Zentyal Core..."
-# Menginstal base Zentyal tanpa paket GUI desktop yang tidak perlu
+echo "[6/6] Menginstal Zentyal Core..."
 apt-get install -y --no-install-recommends zentyal
 
 echo "=========================================="
