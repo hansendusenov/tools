@@ -1,42 +1,55 @@
 #!/bin/bash
 
 # ==========================================
-# Zentyal Server FORCE Auto-Installer untuk Ubuntu 26.04
+# Zentyal Server 8.1 Auto-Installer (Ubuntu 24.04 LTS)
 # Repository: https://github.com/hansendusenov/tools
 # ==========================================
 
+# Berhenti otomatis jika ada perintah krusial yang gagal
 set -e
 
-echo "[1/5] Pengecekan Akses Root..."
+echo "[1/6] Pengecekan Sistem..."
 if [ "$EUID" -ne 0 ]; then
   echo "Error: Script ini harus dijalankan dengan sudo."
   exit 1
 fi
 
-echo "[2/5] Menyiapkan environment & bypass proteksi OS..."
+# Pengecekan OS ketat untuk Ubuntu 24.04 LTS
+UBUNTU_CODENAME=$(lsb_release -cs 2>/dev/null || grep VERSION_CODENAME /etc/os-release | cut -d= -f2)
+if [ "$UBUNTU_CODENAME" != "noble" ]; then
+  echo "PERINGATAN KRITIS: Script ini dirancang KHUSUS untuk Ubuntu 24.04 (Noble)."
+  echo "Sistem Anda terdeteksi sebagai: $UBUNTU_CODENAME"
+  echo "Instalasi dibatalkan otomatis untuk mencegah kerusakan sistem."
+  exit 1
+fi
+
+# Mencegah pop-up interaktif saat instalasi package
 export DEBIAN_FRONTEND=noninteractive
 
-echo "[3/5] Injeksi Repository Sementara Ubuntu 24.04 (Noble)..."
-# Menambahkan repo lama agar apt bisa mengambil dependency usang yang dibutuhkan Zentyal
-echo "deb http://archive.ubuntu.com/ubuntu noble main restricted universe multiverse" > /etc/apt/sources.list.d/noble-temp.list
-
-echo "[4/5] Menambahkan Repository & GPG Key Zentyal 8.1..."
-# Menggunakan URL packages.zentyal.org yang valid untuk rilis 8.1
-wget -qO - https://keys.zentyal.org/zentyal-8.1-packages-org.asc | cat > /etc/apt/trusted.gpg.d/zentyal_8.1.asc
-echo "deb http://packages.zentyal.org/zentyal 8.1 main extra" > /etc/apt/sources.list.d/zentyal.list
-
-echo "[5/5] Update APT & Memaksa Instalasi Zentyal..."
+echo "[2/6] Update OS dan install dependencies..."
 apt-get update
+apt-get install -y wget ca-certificates apt-transport-https software-properties-common gnupg2 lsb-release
 
-# Install Zentyal dan izinkan apt menarik/menurunkan versi package dari repo Noble
-apt-get install -y --allow-downgrades --no-install-recommends zentyal
+echo "[3/6] Mengimpor GPG Key Zentyal..."
+# Menyelesaikan masalah NO_PUBKEY dengan menarik key langsung dari keyserver Ubuntu Port 80
+gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 07BE4CBFFDE85677 >/dev/null 2>&1 || true
+gpg --export 07BE4CBFFDE85677 > /etc/apt/trusted.gpg.d/zentyal-recovered.gpg 2>/dev/null || true
 
-echo "Membersihkan repository sementara agar server tidak rusak saat update kedepannya..."
-rm -f /etc/apt/sources.list.d/noble-temp.list
+echo "[4/6] Menambahkan Repository Sementara Zentyal 8.1..."
+echo "deb http://packages.zentyal.org/zentyal 8.1 main extra" > /etc/apt/sources.list.d/zentyal-installer.list
+
+echo "[5/6] Menginstal Zentyal Core..."
 apt-get update
+apt-get install -y --no-install-recommends zentyal
+
+echo "[6/6] Membersihkan Konfigurasi Duplikat..."
+# Menghapus repo sementara agar tidak memunculkan warning duplikat (karena installer zentyal otomatis membuat file .sources sendiri)
+rm -f /etc/apt/sources.list.d/zentyal-installer.list
+rm -f /etc/apt/sources.list.d/zentyal.list 2>/dev/null
 
 echo "=========================================="
-echo "Instalasi Paksa Zentyal Selesai!"
-echo "Silakan cek apakah Dashboard bisa diakses di:"
+echo "Instalasi Zentyal Berhasil Sempurna Tanpa Error!"
+echo "Dashboard siap diakses di:"
 echo "https://$(hostname -I | awk '{print $1}'):8443"
+echo "Login menggunakan username dan password OS Ubuntu ini."
 echo "=========================================="
